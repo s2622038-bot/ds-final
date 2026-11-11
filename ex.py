@@ -32,10 +32,11 @@ def scrape_google_repos():
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/120.0.0.0 Safari/537.36"
-        )
+        ),
+        "Accept-Language": "en-US,en;q=0.9",
     }
 
-    # 指定されたインターバル（ルール通り time.sleep(1) を挿入）
+    # 課題ルール通り time.sleep(1) を挿入
     time.sleep(1)
 
     response = requests.get(url, headers=headers)
@@ -46,22 +47,26 @@ def scrape_google_repos():
     soup = BeautifulSoup(response.text, "html.parser")
     repo_list = []
 
-    # リポジトリカードの抽出
-    repos = soup.select("li.Box-row")
+    # リポジトリカード（articleタグまたはBox-row）を広く取得
+    repos = soup.select("article") or soup.select("li.Box-row")
+
     for repo in repos:
         # リポジトリ名
-        name_elem = repo.select_one('a[aria-describedby], a[data-hovercard-type="repository"]')
-        repo_name = name_elem.text.strip() if name_elem else "N/A"
+        name_elem = repo.select_one("a[aria-describedby]") or repo.select_one("h3 a") or repo.select_one("a")
+        repo_name = name_elem.text.strip().replace("\n", "").replace(" ", "") if name_elem else "N/A"
 
         # 主要言語
-        lang_elem = repo.select_one('span[itemprop="programmingLanguage"]')
+        lang_elem = repo.select_one('span[itemprop="programmingLanguage"]') or repo.select_one(
+            'span[class*="language"]'
+        )
         language = lang_elem.text.strip() if lang_elem else "None"
 
         # スター数
-        star_elem = repo.select_one('a[href$="/stargazers"]')
-        stars = star_elem.text.strip() if star_elem else "0"
+        star_elem = repo.select_one('a[href$="/stargazers"]') or repo.select_one('a[href*="stargazers"]')
+        stars = star_elem.text.strip().replace(",", "") if star_elem else "0"
 
-        repo_list.append((repo_name, language, stars))
+        if repo_name != "N/A":
+            repo_list.append((repo_name, language, stars))
 
     return repo_list
 
